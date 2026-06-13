@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { GameState, GameActions, GameConfig } from '@/types/game';
+import type { GameState, GameActions, GameConfig, Crop } from '@/types/game';
 import {
   INITIAL_CROPS,
   INITIAL_MERCHANTS,
@@ -28,19 +28,48 @@ import {
   calculateMerchantCounterOffer,
 } from '@/utils/negotiationAI';
 
-const getInitialState = (): GameState => ({
-  day: 1,
-  money: INITIAL_MONEY,
-  crops: INITIAL_CROPS,
-  plots: INITIAL_PLOTS.map((p) => ({ ...p })),
-  inventory: [],
-  merchants: INITIAL_MERCHANTS.map((m) => ({ ...m })),
-  currentMerchantId: null,
-  contracts: [],
-  ledger: [],
-  negotiation: { ...INITIAL_NEGOTIATION },
-  config: { ...INITIAL_CONFIG },
-});
+const STORAGE_KEY = 'alien-farm-save';
+
+function loadFromStorage(): Partial<GameState> | null {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (e) {
+    console.error('Failed to load game state:', e);
+  }
+  return null;
+}
+
+function saveToStorage(state: GameState) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.error('Failed to save game state:', e);
+  }
+}
+
+const getInitialState = (): GameState => {
+  const saved = loadFromStorage();
+  const base: GameState = {
+    day: 1,
+    money: INITIAL_MONEY,
+    crops: INITIAL_CROPS,
+    plots: INITIAL_PLOTS.map((p) => ({ ...p })),
+    inventory: [],
+    merchants: INITIAL_MERCHANTS.map((m) => ({ ...m })),
+    currentMerchantId: null,
+    contracts: [],
+    ledger: [],
+    negotiation: { ...INITIAL_NEGOTIATION },
+    config: { ...INITIAL_CONFIG },
+  };
+  if (saved) {
+    return { ...base, ...saved };
+  }
+  return base;
+};
 
 export const useGameStore = create<GameState & GameActions>((set, get) => ({
   ...getInitialState(),
@@ -111,7 +140,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     if (state.money < crop.seedPrice) return;
 
     const newPlots = state.plots.map((plot) =>
-      plot.id === plotId && !plot.cropId
+      plot.id === plotId && (!plot.cropId || plot.rotten)
         ? { ...plot, cropId, growth: 0, watered: false, mature: false, rotten: false, quality: 50 }
         : plot
     );
@@ -279,21 +308,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       agreedPrice
     );
 
-    const merchant = state.merchants.find((m) => m.id === negotiation.merchantId);
-    const crop = state.crops.find((c) => c.id === negotiation.cropId);
-
-    const newLedger = addLedgerEntry(
-      state.ledger,
-      'income',
-      '签订合同',
-      `与${merchant?.name || '商人'}签订${crop?.name || '作物'}合同`,
-      agreedPrice,
-      state.day
-    );
-
     set({
       contracts: [...state.contracts, contract],
-      ledger: newLedger,
       negotiation: { ...INITIAL_NEGOTIATION },
     });
   },
@@ -358,7 +374,37 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     }));
   },
 
+  updateCrop: (cropId: string, updates: Partial<Crop>) => {
+    set((state) => ({
+      crops: state.crops.map((c) =>
+        c.id === cropId ? { ...c, ...updates } : c
+      ),
+    }));
+  },
+
   resetGame: () => {
-    set(getInitialState());
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {
+      console.error('Failed to clear storage:', e);
+    }
+    const freshState: GameState = {
+      day: 1,
+      money: INITIAL_MONEY,
+      crops: INITIAL_CROPS,
+      plots: INITIAL_PLOTS.map((p) => ({ ...p })),
+      inventory: [],
+      merchants: INITIAL_MERCHANTS.map((m) => ({ ...m })),
+      currentMerchantId: null,
+      contracts: [],
+      ledger: [],
+      negotiation: { ...INITIAL_NEGOTIATION },
+      config: { ...INITIAL_CONFIG },
+    };
+    set(freshState);
   },
 }));
+
+useGameStore.subscribe((state) => {
+  saveToStorage(state);
+});

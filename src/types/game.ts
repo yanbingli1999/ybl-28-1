@@ -105,5 +105,6 @@ export interface GameActions {
   endNegotiation: () => void;
   fulfillContract: (contractId: string) => void;
   updateConfig: (config: Partial<GameConfig>) => void;
+  updateCrop: (cropId: string, updates: Partial<Crop>) => void;
   resetGame: () => void;
 }

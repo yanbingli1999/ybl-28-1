@@ -11,7 +11,7 @@ export function FarmPanel() {
     const plot = plots.find((p) => p.id === plotId);
     if (!plot) return;
 
-    if (!plot.cropId) {
+    if (!plot.cropId || plot.rotten) {
       setSelectedPlot(plotId);
       setShowSeedMenu(true);
     }
@@ -94,7 +94,10 @@ export function FarmPanel() {
                     )}
 
                     {plot.rotten && (
-                      <span className="text-xs text-red-400 mt-1">💀 已腐烂</span>
+                      <>
+                        <span className="text-xs text-red-400 mt-1">💀 已腐烂</span>
+                        <span className="text-[10px] text-purple-400 mt-0.5">点击清理重种</span>
+                      </>
                     )}
 
                     {plot.mature && !plot.rotten && (

@@ -208,11 +208,11 @@ export function NegotiationModal() {
 
                 <button
                   onClick={handleBid}
-                  disabled={isLastRound}
+                  disabled={bidAmount <= 0}
                   className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2"
                 >
                   <ArrowRight className="w-5 h-5" />
-                  还价
+                  {isLastRound ? '最终出价' : '还价'}
                 </button>
               </div>
 
